@@ -8,7 +8,7 @@
         location / {
             try_files $uri $uri/ /index.html;
             sub_filter_types text/xml application/javascript text/javascript;
-            sub_filter 'http://localhost:8080' $HOST_API;
+            sub_filter 'https://verifier.thomasclaudi.de' $HOST_API;
             sub_filter_once on;
         }
     }

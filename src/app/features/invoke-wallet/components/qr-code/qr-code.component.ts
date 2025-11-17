@@ -1,45 +1,52 @@
-import {ChangeDetectionStrategy, Component, EventEmitter, Injector, OnDestroy, OnInit, Output} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {SharedModule} from '@shared/shared.module';
-import {interval, ReplaySubject, Subject, take, takeUntil} from 'rxjs';
-import {map} from 'rxjs/operators';
-import {NavigateService} from '@core/services/navigate.service';
-import {DeviceDetectorService} from '@core/services/device-detector.service';
-import {LocalStorageService} from '@core/services/local-storage.service';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  Injector,
+  OnDestroy,
+  OnInit,
+  Output,
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { SharedModule } from '@shared/shared.module';
+import { interval, ReplaySubject, Subject, take, takeUntil } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { NavigateService } from '@core/services/navigate.service';
+import { DeviceDetectorService } from '@core/services/device-detector.service';
+import { LocalStorageService } from '@core/services/local-storage.service';
 import * as constants from '@core/constants/general';
-import {ACTIVE_TRANSACTION} from '@core/constants/general';
-import {MatDialog, MatDialogModule} from '@angular/material/dialog';
-import {OpenLogsComponent} from '@shared/elements/open-logs/open-logs.component';
-import {VerifierEndpointService} from "@core/services/verifier-endpoint.service";
-import {WalletResponse} from "@core/models/WalletResponse";
-import {ConcludedTransaction} from "@core/models/ConcludedTransaction";
-import {QRCodeComponent} from 'angularx-qrcode';
-import {SafeUrl} from "@angular/platform-browser";
-import {ActiveTransaction} from "@core/models/ActiveTransaction";
+import { ACTIVE_TRANSACTION } from '@core/constants/general';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { OpenLogsComponent } from '@shared/elements/open-logs/open-logs.component';
+import { VerifierEndpointService } from '@core/services/verifier-endpoint.service';
+import { WalletResponse } from '@core/models/WalletResponse';
+import { ConcludedTransaction } from '@core/models/ConcludedTransaction';
+import { QRCodeComponent } from 'angularx-qrcode';
+import { SafeUrl } from '@angular/platform-browser';
+import { ActiveTransaction } from '@core/models/ActiveTransaction';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
-import {MatProgressBarModule} from '@angular/material/progress-bar';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 @Component({
-    selector: 'vc-qr-code',
-    imports: [
-        CommonModule,
-        SharedModule,
-        MatDialogModule,
-        MatButtonModule,
-        MatCardModule,
-        MatDividerModule,
-        MatProgressBarModule,
-        QRCodeComponent
-    ],
-    templateUrl: './qr-code.component.html',
-    styleUrls: ['./qr-code.component.scss'],
-    providers: [VerifierEndpointService],
-    changeDetection: ChangeDetectionStrategy.OnPush
+  selector: 'vc-qr-code',
+  imports: [
+    CommonModule,
+    SharedModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatCardModule,
+    MatDividerModule,
+    MatProgressBarModule,
+    QRCodeComponent,
+  ],
+  templateUrl: './qr-code.component.html',
+  styleUrls: ['./qr-code.component.scss'],
+  providers: [VerifierEndpointService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class QrCodeComponent implements OnInit, OnDestroy {
-
   private readonly deviceDetectorService!: DeviceDetectorService;
   private readonly localStorageService!: LocalStorageService;
 
@@ -54,7 +61,8 @@ export class QrCodeComponent implements OnInit, OnDestroy {
   qrCodeDownloadLink!: SafeUrl;
   readonly dialog!: MatDialog;
 
-  @Output() transactionConcludedEvent = new EventEmitter<ConcludedTransaction>();
+  @Output() transactionConcludedEvent =
+    new EventEmitter<ConcludedTransaction>();
 
   emitTransactionConcludedEvent(concludedTransaction: ConcludedTransaction) {
     this.transactionConcludedEvent.emit(concludedTransaction);
@@ -63,7 +71,7 @@ export class QrCodeComponent implements OnInit, OnDestroy {
   constructor(
     private readonly verifierEndpointService: VerifierEndpointService,
     private readonly navigateService: NavigateService,
-    private readonly injector: Injector,
+    private readonly injector: Injector
   ) {
     this.deviceDetectorService = this.injector.get(DeviceDetectorService);
     this.localStorageService = this.injector.get(LocalStorageService);
@@ -71,7 +79,9 @@ export class QrCodeComponent implements OnInit, OnDestroy {
     this.isCrossDevice = this.deviceDetectorService.isDesktop();
 
     if (this.localStorageService.get(constants.SCHEME)) {
-      this.scheme = this.localStorageService.get(constants.SCHEME) ?? constants.DEFAULT_SCHEME;
+      this.scheme =
+        this.localStorageService.get(constants.SCHEME) ??
+        constants.DEFAULT_SCHEME;
     } else {
       this.scheme = constants.DEFAULT_SCHEME;
     }
@@ -84,9 +94,14 @@ export class QrCodeComponent implements OnInit, OnDestroy {
     if (!this.transaction) {
       this.navigateService.goHome();
     } else {
-      this.deepLinkTxt = this.buildQrCode(this.transaction.initialized_transaction);
+      this.deepLinkTxt = this.buildQrCode(
+        this.transaction.initialized_transaction
+      );
+      console.log('QR string:', this.deepLinkTxt);
       if (this.isCrossDevice) {
-        this.pollingRequest(this.transaction.initialized_transaction.transaction_id);
+        this.pollingRequest(
+          this.transaction.initialized_transaction.transaction_id
+        );
       }
     }
   }
@@ -97,25 +112,19 @@ export class QrCodeComponent implements OnInit, OnDestroy {
 
   private pollingRequest(transaction_id: string) {
     const source = interval(2000);
-    source
-      .pipe(
-        takeUntil(this.stopPlay$),
-        take(60)
-      )
-      .subscribe(() => {
-        this.verifierEndpointService.getWalletResponse(transaction_id)
-          .pipe(
-            takeUntil(this.stopPlay$),
-            map((data) => data as WalletResponse),
-          )
-          .subscribe(
-            (res: WalletResponse) => {
-              this.stopPlay$.next(1);
-              let concludedTransaction = this.concludeTransaction(res);
-              this.emitTransactionConcludedEvent(concludedTransaction)
-            },
-          );
-      });
+    source.pipe(takeUntil(this.stopPlay$), take(60)).subscribe(() => {
+      this.verifierEndpointService
+        .getWalletResponse(transaction_id)
+        .pipe(
+          takeUntil(this.stopPlay$),
+          map((data) => data as WalletResponse)
+        )
+        .subscribe((res: WalletResponse) => {
+          this.stopPlay$.next(1);
+          let concludedTransaction = this.concludeTransaction(res);
+          this.emitTransactionConcludedEvent(concludedTransaction);
+        });
+    });
   }
 
   private concludeTransaction(response: WalletResponse): ConcludedTransaction {
@@ -123,16 +132,34 @@ export class QrCodeComponent implements OnInit, OnDestroy {
       transactionId: this.transaction.initialized_transaction.transaction_id,
       presentationQuery: this.transaction.initialization_request!!.dcql_query,
       walletResponse: response,
-      nonce: this.transaction.initialization_request.nonce
-    }
+      nonce: this.transaction.initialization_request.nonce,
+    };
     // Clear local storage
     this.localStorageService.remove(constants.ACTIVE_TRANSACTION);
 
     return concludedTransaction;
   }
 
-  private buildQrCode(data: { client_id: string, request_uri: string, request_uri_method: 'get' | 'post', transaction_id: string }): string {
-    return `${this.scheme}?client_id=${encodeURIComponent(data.client_id)}&request_uri=${encodeURIComponent(data.request_uri)}&request_uri_method=${encodeURIComponent(data.request_uri_method)}`;
+  private buildQrCode(data: {
+    client_id: string;
+    request_uri: string;
+    request_uri_method: 'get' | 'post';
+    transaction_id: string;
+  }): string {
+    console.log('QR data:', {
+      scheme: this.scheme,
+      clientId: data.client_id,
+      requestUri: data.request_uri,
+      requestUriMethod: data.request_uri_method,
+    });
+    const effectiveClientId = data.client_id.startsWith('pre-registered')
+      ? data.client_id
+      : `pre-registered:${data.client_id}`;
+    return `${this.scheme}?client_id=${encodeURIComponent(
+      effectiveClientId
+    )}&request_uri=${encodeURIComponent(
+      data.request_uri
+    )}&request_uri_method=${encodeURIComponent(data.request_uri_method)}`;
   }
 
   openLogs() {
@@ -140,7 +167,7 @@ export class QrCodeComponent implements OnInit, OnDestroy {
       data: {
         transactionId: this.transaction.initialized_transaction.transaction_id,
         label: 'Show Logs',
-        isInspectLogs: false
+        isInspectLogs: false,
       },
     });
   }
