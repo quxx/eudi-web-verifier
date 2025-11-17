@@ -152,11 +152,8 @@ export class QrCodeComponent implements OnInit, OnDestroy {
       requestUri: data.request_uri,
       requestUriMethod: data.request_uri_method,
     });
-    const effectiveClientId = data.client_id.startsWith('pre-registered')
-      ? data.client_id
-      : `pre-registered:${data.client_id}`;
     return `${this.scheme}?client_id=${encodeURIComponent(
-      effectiveClientId
+      data.client_id
     )}&request_uri=${encodeURIComponent(
       data.request_uri
     )}&request_uri_method=${encodeURIComponent(data.request_uri_method)}`;
